@@ -1,16 +1,9 @@
 
-CREATE TABLE hos_members (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  username VARCHAR(255) NOT NULL UNIQUE,
-  password VARCHAR(255) NOT NULL
-);
-
 CREATE TABLE messages (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT,
+  user_id BIGINT,
   content TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES hos_members(id)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE replies (
@@ -18,6 +11,5 @@ CREATE TABLE replies (
   message_id INT NOT NULL,
   reply_content TEXT,
   reply_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  delivered BOOLEAN DEFAULT FALSE,
-  FOREIGN KEY (message_id) REFERENCES messages(id)
-); 
+  FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+);

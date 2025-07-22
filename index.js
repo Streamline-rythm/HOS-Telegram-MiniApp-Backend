@@ -19,8 +19,10 @@ const onlineUsers = new Map(); // userId -> socket.id
 app.use(cors());
 app.use(express.json());
 
+// -------------- test --------------
 app.get('/test', (req, res) => res.send('Chat server running!'));
 
+// -------------- Fetching correct replied message by message Id ----------------------
 const getRepliesForMessages = async (messageIds) => {
   if (messageIds.length === 0) return {};
   const [rows] = await pool.query(
@@ -35,7 +37,7 @@ const getRepliesForMessages = async (messageIds) => {
   return repliesByMessage;
 };
 
-// Webhook endpoint for external system to send reply
+// ---------------- Webhook endpoint for external system to send reply -------------------
 app.post('/webhook/reply', async (req, res) => {
   const { messageId, reply } = req.body;
   try {
@@ -46,12 +48,12 @@ app.post('/webhook/reply', async (req, res) => {
     );
     // Find userId for this message
     const [[msg]] = await pool.query('SELECT user_id FROM messages WHERE id = ?', [messageId]);
+    console.log(`message = ${msg}`);
     if (msg) {
       const userId = msg.user_id;
       const socketId = onlineUsers.get(userId);
       if (socketId) {
         io.to(socketId).emit('reply', { messageId, reply });
-        await pool.query('UPDATE replies SET delivered = TRUE WHERE id = ?', [result.insertId]);
       }
     }
     res.json({ status: 'ok' });
@@ -61,7 +63,7 @@ app.post('/webhook/reply', async (req, res) => {
   }
 });
 
-// History endpoint
+// ----------------------- Fetching all chatting history -------------------------------------
 app.get('/messages', async (req, res) => {
   const userId = req.query.userId;
   if (!userId) return res.status(400).json({ error: 'userId required' });
@@ -82,14 +84,10 @@ app.get('/messages', async (req, res) => {
   }
 });
 
+
+// ---------------------- Socket communication between Frontend and Backend --------------------------
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
-
-  socket.on('register', async (userId) => {
-    onlineUsers.set(userId, socket.id);
-    // No longer emit undelivered replies here; frontend will fetch history via /messages
-  });
-
   socket.on('chat message', async (msg) => {
     // msg: { userId, content }
     try {
@@ -98,13 +96,12 @@ io.on('connection', (socket) => {
         [msg.userId, msg.content]
       );
       // Forward to external system (webhook)
-      // TODO: Replace with actual webhook URL
-      // const axios = require('axios');
-      // await axios.post(process.env.EXTERNAL_WEBHOOK_URL, {
-      //   messageId: result.insertId,
-      //   userId: msg.userId,
-      //   content: msg.content
-      // });
+      const axios = require('axios');
+      await axios.post(process.env.EXTERNAL_WEBHOOK_URL, {
+        messageId: result.insertId,
+        userId: msg.userId,
+        content: msg.content
+      });
     } catch (err) {
       console.error('Failed to save/send message:', err);
     }
