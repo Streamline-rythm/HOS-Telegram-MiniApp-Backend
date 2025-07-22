@@ -1,11 +1,11 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import express from 'express';
 import http from 'http';
-import { Server } from 'socket.io';
 import cors from 'cors';
-import pool from './db.js'; // Note the `.js` extension is required in ES modules
+import pool from './db.js';
+import express from 'express';
+import { Server } from 'socket.io';
 
 
 const app = express();
