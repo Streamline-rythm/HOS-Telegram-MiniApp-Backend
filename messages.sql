@@ -1,0 +1,23 @@
+
+CREATE TABLE hos_members (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(255) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE messages (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT,
+  content TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES hos_members(id)
+);
+
+CREATE TABLE replies (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  message_id INT NOT NULL,
+  reply_content TEXT,
+  reply_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  delivered BOOLEAN DEFAULT FALSE,
+  FOREIGN KEY (message_id) REFERENCES messages(id)
+); 
