@@ -1,31 +1,18 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import fs from 'fs';
-import https from 'https';
+import http from 'http';
 import cors from 'cors';
 import axios from 'axios';
 import pool from './db.js';
-import path from 'path';
 import express from 'express';
 import { Server } from 'socket.io';
-import { fileURLToPath } from 'url'; // ✅ Needed for __dirname in ES Modules
 
-// ✅ Define __filename and __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ✅ Correct path to .ssl directory
-const sslDirectory = path.join(__dirname, '.ssh');
-const httpsOptions = {
-  key: fs.readFileSync(path.join(sslDirectory, 'selfsigned.key')),
-  cert: fs.readFileSync(path.join(sslDirectory, 'selfsigned.crt')),
-};
 
 // You can now use `httpsOptions` to create your HTTPS server
 const app = express();
 
-const server = https.createServer(httpsOptions, app);
+const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: { origin: '*' }
