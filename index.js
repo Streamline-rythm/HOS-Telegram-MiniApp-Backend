@@ -91,7 +91,7 @@ app.get('/messages', async (req, res) => {
 app.post('/verify', async (req, res) => {
   const { telegramId } = req.body;
 
-  const [rows] = await db.query('SELECT * FROM driversDirectory WHERE telegram_id = ?', [`@${telegramId}`]);
+  const [rows] = await pool.query('SELECT * FROM driversDirectory WHERE telegramId = ?', [`@${telegramId}`]);
 
   if (rows.length === 0) {
     return res.status(403).json({ error: 'Access denied: Not a member.' });
