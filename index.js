@@ -6,12 +6,14 @@ import https from 'https';
 import cors from 'cors';
 import axios from 'axios';
 import pool from './db.js';
+const path = require('path');
 import express from 'express';
 import { Server } from 'socket.io';
 
+const sslDirectory = path.join(__dirname, '.ssl');
 const httpsOptions = {
-  key: fs.readFileSync('./ssl/selfsigned.key'),
-  cert: fs.readFileSync('./ssl/selfsigned.crt'),
+  key: fs.readFileSync(path.join(sslDirectory, 'selfsigned.key')),
+  cert: fs.readFileSync(path.join(sslDirectory, 'selfsigned.crt')),
 };
 
 const app = express();
