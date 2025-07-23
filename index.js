@@ -1,16 +1,23 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import http from 'http';
+import fs from 'fs';
+import https from 'https';
 import cors from 'cors';
 import axios from 'axios';
 import pool from './db.js';
 import express from 'express';
 import { Server } from 'socket.io';
 
+const httpsOptions = {
+  key: fs.readFileSync('./ssl/selfsigned.key'),
+  cert: fs.readFileSync('./ssl/selfsigned.crt'),
+};
 
 const app = express();
-const server = http.createServer(app);
+
+const server = https.createServer(httpsOptions, app);
+
 const io = new Server(server, {
   cors: { origin: '*' }
 });
