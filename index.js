@@ -3,6 +3,7 @@ dotenv.config();
 
 import http from 'http';
 import cors from 'cors';
+import axios from 'axios';
 import pool from './db.js';
 import express from 'express';
 import { Server } from 'socket.io';
@@ -48,12 +49,14 @@ app.post('/webhook/reply', async (req, res) => {
     );
     // Find userId for this message
     const [[msg]] = await pool.query('SELECT user_id FROM messages WHERE id = ?', [messageId]);
-    console.log(`message = ${msg}`);
     if (msg) {
       const userId = msg.user_id;
+      console.log(`user ID = ${userId}`);
       const socketId = onlineUsers.get(userId);
       if (socketId) {
         io.to(socketId).emit('reply', { messageId, reply });
+      } else {
+        console.log("there is not socket ID");
       }
     }
     res.json({ status: 'ok' });
@@ -84,6 +87,17 @@ app.get('/messages', async (req, res) => {
   }
 });
 
+// ---------------------- verify user --------------------------
+app.post('/verify', async (req, res) => {
+  const { telegramId } = req.body;
+
+  const [rows] = await db.query('SELECT * FROM driversDirectory WHERE telegram_id = ?', [`@${telegramId}`]);
+
+  if (rows.length === 0) {
+    return res.status(403).json({ error: 'Access denied: Not a member.' });
+  }
+  return res.status(200).json({ ok: true });
+});
 
 // ---------------------- Socket communication between Frontend and Backend --------------------------
 io.on('connection', (socket) => {
@@ -91,12 +105,12 @@ io.on('connection', (socket) => {
   socket.on('chat message', async (msg) => {
     // msg: { userId, content }
     try {
+      onlineUsers.set(msg.userId, socket.id);
       const [result] = await pool.query(
         'INSERT INTO messages (user_id, content) VALUES (?, ?)',
         [msg.userId, msg.content]
       );
       // Forward to external system (webhook)
-      const axios = require('axios');
       await axios.post(process.env.EXTERNAL_WEBHOOK_URL, {
         messageId: result.insertId,
         userId: msg.userId,
