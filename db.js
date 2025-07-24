@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
-import {SecretManagerServiceClient}  from '@google-cloud/secret-manager';
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
 dotenv.config();
 
