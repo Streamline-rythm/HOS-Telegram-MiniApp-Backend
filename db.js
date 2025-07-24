@@ -1,28 +1,28 @@
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
-import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+// import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
 dotenv.config();
 
-const client = new SecretManagerServiceClient();
+// const client = new SecretManagerServiceClient();
 
-async function getSecretValue(secretName) {
-  try {
-    const [accessResponse] = await client.accessSecretVersion({
-      name: secretName,
-    });
+// async function getSecretValue(secretName) {
+//   try {
+//     const [accessResponse] = await client.accessSecretVersion({
+//       name: secretName,
+//     });
 
-    const secretPayload = accessResponse.payload.data.toString('utf8');
-    return secretPayload;
-  } catch (error) {
-    console.error(`Failed to access secret ${secretName}:`, error);
-    throw error;
-  }
-}
+//     const secretPayload = accessResponse.payload.data.toString('utf8');
+//     return secretPayload;
+//   } catch (error) {
+//     console.error(`Failed to access secret ${secretName}:`, error);
+//     throw error;
+//   }
+// }
 
-const client_cert = getSecretValue(process.env.CLIENT_CERT_PATH);
-const server_ca = getSecretValue(process.env.SERVER_CA_PATH);
-const client_key = getSecretValue(process.env.CLIENT_KEY_PATH);
+const client_cert = process.env.client_cert;
+const server_ca = process.env.server_ca;
+const client_key = process.env.client_key;
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
