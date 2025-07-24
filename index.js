@@ -15,6 +15,7 @@ const io = new Server(server, {
   cors: { origin: '*' }
 });
 const onlineUsers = new Map(); // userId -> socket.id
+const EXTERNAL_WEBHOOK_URL = "https://hook.us2.make.com/dofk0pewchek787h49faugkr5ql7otnu";
 
 app.use(cors());
 app.use(express.json());
@@ -33,7 +34,6 @@ const getRepliesForMessages = async (messageIds) => {
   });
   return repliesByMessage;
 };
-
 
 // ---------------- Webhook endpoint for external system to send reply -------------------
 app.post('/webhook/reply', async (req, res) => {
@@ -109,7 +109,7 @@ io.on('connection', (socket) => {
         [msg.userId, msg.content]
       );
       // Forward to external system (webhook)
-      await axios.post(process.env.EXTERNAL_WEBHOOK_URL, {
+      await axios.post(EXTERNAL_WEBHOOK_URL, {
         messageId: result.insertId,
         userId: msg.userId,
         content: msg.content
