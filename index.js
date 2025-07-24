@@ -1,30 +1,23 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
 import http from 'http';
 import cors from 'cors';
 import axios from 'axios';
-import pool from './db.js';
+import dotenv from 'dotenv';
 import express from 'express';
 import { Server } from 'socket.io';
 
+import pool from './db.js';
 
-// You can now use `httpsOptions` to create your HTTPS server
+dotenv.config();
+
 const app = express();
-
 const server = http.createServer(app);
-
 const io = new Server(server, {
   cors: { origin: '*' }
 });
-
 const onlineUsers = new Map(); // userId -> socket.id
 
 app.use(cors());
 app.use(express.json());
-
-// -------------- test --------------
-app.get('/test', (req, res) => res.send('Chat server running!'));
 
 // -------------- Fetching correct replied message by message Id ----------------------
 const getRepliesForMessages = async (messageIds) => {
@@ -40,6 +33,7 @@ const getRepliesForMessages = async (messageIds) => {
   });
   return repliesByMessage;
 };
+
 
 // ---------------- Webhook endpoint for external system to send reply -------------------
 app.post('/webhook/reply', async (req, res) => {
@@ -105,6 +99,7 @@ app.post('/verify', async (req, res) => {
 // ---------------------- Socket communication between Frontend and Backend --------------------------
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
+
   socket.on('chat message', async (msg) => {
     // msg: { userId, content }
     try {
@@ -136,5 +131,5 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`)); 

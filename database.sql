@@ -1,7 +1,6 @@
-
 CREATE TABLE messages (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id BIGINT,
+  user_id TEXT,
   content TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

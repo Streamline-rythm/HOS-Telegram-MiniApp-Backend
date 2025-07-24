@@ -1,14 +1,28 @@
-
-import { fileURLToPath } from 'url';
-import path from "path";
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
-import fs from 'fs';
+import SecretManagerServiceClient  from '@google-cloud/secret-manager';
+
 dotenv.config();
 
+const client = new SecretManagerServiceClient();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+async function getSecretValue(secretName) {
+  try {
+    const [accessResponse] = await client.accessSecretVersion({
+      name: secretName,
+    });
+
+    const secretPayload = accessResponse.payload.data.toString('utf8');
+    return secretPayload;
+  } catch (error) {
+    console.error(`Failed to access secret ${secretName}:`, error);
+    throw error;
+  }
+}
+
+const client_cert = getSecretValue(process.env.CLIENT_CERT_PATH);
+const server_ca = getSecretValue(process.env.SERVER_CA_PATH);
+const client_key = getSecretValue(process.env.CLIENT_KEY_PATH);
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -19,9 +33,9 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   ssl: {
-    ca: fs.readFileSync(path.join(__dirname, 'client_certification', 'server-ca.pem')),
-    cert: fs.readFileSync(path.join(__dirname, 'client_certification', 'client-cert.pem')),
-    key: fs.readFileSync(path.join(__dirname, 'client_certification', 'client-key.pem')),
+    ca: server_ca,
+    cert: client_cert,
+    key: client_key,
   }
 });
 export default pool; 
