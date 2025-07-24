@@ -38,4 +38,5 @@ const pool = mysql.createPool({
     key: client_key,
   }
 });
+
 export default pool; 
