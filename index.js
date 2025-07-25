@@ -20,7 +20,7 @@ const EXTERNAL_WEBHOOK_URL = "https://hook.us2.make.com/dofk0pewchek787h49faugkr
 app.use(cors());
 app.use(express.json());
 
-// -------------- Fetching correct replied message by message Id ----------------------
+// -------------- Fetching correct replied messages by message Ids ----------------------
 const getRepliesForMessages = async (messageIds) => {
   if (messageIds.length === 0) return {};
   const [rows] = await pool.query(
