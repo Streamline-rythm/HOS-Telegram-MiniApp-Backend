@@ -127,6 +127,7 @@ io.on('connection', (socket) => {
     // msg: { userId, content }
     try {
       onlineUsers.set(msg.userId, socket.id);
+      console.log("chat message user Id showing", msg.userId);
       const [result] = await pool.query(
         'INSERT INTO messages (user_id, content) VALUES (?, ?)',
         [msg.userId, msg.content]
