@@ -38,7 +38,7 @@ const getRepliesForMessages = async (messageIds) => {
 // ---------------- Webhook endpoint for external system to send reply -------------------
 app.post('/webhook/reply', async (req, res) => {
   const { messageId, reply } = req.body;
-  const convert_reply = reply.replaceAll("***", "\\n");
+  const convert_reply = reply.replaceAll("***", "\n");
   try {
     // Insert new reply
     const [result] = await pool.query(
