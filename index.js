@@ -12,15 +12,22 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*' }
+  cors: { origin: '*' },
+  pingTimeout: 20000,
+  pingInterval: 10000
 });
+
 const onlineUsers = new Map(); // userId -> socket.id
 const EXTERNAL_WEBHOOK_URL = "https://hook.us2.make.com/dofk0pewchek787h49faugkr5ql7otnu";
 
 app.use(cors());
 app.use(express.json());
 
-// -------------- Fetching correct replied messages by message Ids ----------------------
+// ✅ asyncHandler utility
+const asyncHandler = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
+// ✅ Fetching correct replied messages by message Ids
 const getRepliesForMessages = async (messageIds) => {
   if (messageIds.length === 0) return {};
   const [rows] = await pool.query(
@@ -35,71 +42,64 @@ const getRepliesForMessages = async (messageIds) => {
   return repliesByMessage;
 };
 
-// ---------------- Webhook endpoint for external system to send reply -------------------
-app.post('/webhook/reply', async (req, res) => {
+// ✅ Webhook endpoint for external system to send reply
+app.post('/webhook/reply', asyncHandler(async (req, res) => {
   const { messageId, reply } = req.body;
-  try {
-    // Insert new reply
-    const [result] = await pool.query(
-      'INSERT INTO replies (message_id, reply_content) VALUES (?, ?)',
-      [messageId, reply]
-    );
-    // Find userId for this message
-    const [[msg]] = await pool.query('SELECT user_id FROM messages WHERE id = ?', [messageId]);
-    if (msg) {
-      const userId = msg.user_id;
-      console.log(`user ID = ${userId}`);
-      const socketId = onlineUsers.get(userId);
-      if (socketId) {
-        io.to(socketId).emit('reply', { messageId, reply });
-      } else {
-        console.log("there is not socket ID");
-      }
-    }
-    res.json({ status: 'ok' });
-  } catch (err) {
-    console.error('Failed to process webhook reply:', err);
-    res.status(500).json({ error: 'Failed to process reply' });
+  if (!messageId || typeof reply !== 'string') {
+    return res.status(400).json({ error: 'Invalid payload' });
   }
-});
 
-// ----------------------- Fetching all chatting history -------------------------------------
-app.get('/messages', async (req, res) => {
+  const [result] = await pool.query(
+    'INSERT INTO replies (message_id, reply_content) VALUES (?, ?)',
+    [messageId, reply]
+  );
+
+  const [[msg]] = await pool.query('SELECT user_id FROM messages WHERE id = ?', [messageId]);
+  if (msg) {
+    const userId = msg.user_id;
+    const socketId = onlineUsers.get(userId);
+    if (socketId) {
+      io.to(socketId).emit('reply', { messageId, reply });
+    } else {
+      console.log("No active socket for user:", userId);
+    }
+  }
+
+  res.json({ status: 'ok' });
+}));
+
+// ✅ Fetching all chatting history with pagination
+app.get('/messages', asyncHandler(async (req, res) => {
   const userId = req.query.userId;
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+
   if (!userId) return res.status(400).json({ error: 'userId required' });
 
-  try {
-    const [messages] = await pool.query(
-      `
-      SELECT * FROM messages
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-      LIMIT 20
-      `,
-      [userId]
-    );
+  const [messages] = await pool.query(
+    `
+    SELECT * FROM messages
+    WHERE user_id = ?
+    ORDER BY created_at DESC
+    LIMIT ? OFFSET ?
+    `,
+    [userId, limit, offset]
+  );
 
-    // Reverse to get ascending order (oldest first)
-    const sortedMessages = messages.reverse();
+  const sortedMessages = messages.reverse();
+  const messageIds = sortedMessages.map(m => m.id);
+  const repliesByMessage = await getRepliesForMessages(messageIds);
 
-    const messageIds = sortedMessages.map(m => m.id);
-    const repliesByMessage = await getRepliesForMessages(messageIds);
+  const messagesWithReplies = sortedMessages.map(msg => ({
+    ...msg,
+    replies: repliesByMessage[msg.id] || []
+  }));
 
-    const messagesWithReplies = sortedMessages.map(msg => ({
-      ...msg,
-      replies: repliesByMessage[msg.id] || []
-    }));
+  res.json(messagesWithReplies);
+}));
 
-    res.json(messagesWithReplies);
-  } catch (err) {
-    console.error('❌ Error fetching messages:', err);
-    res.status(500).json({ error: 'Failed to fetch messages' });
-  }
-});
-
-
-// ---------------------- verify user --------------------------
-app.post('/verify', async (req, res) => {
+// ✅ Verify user
+app.post('/verify', asyncHandler(async (req, res) => {
   const { telegramId } = req.body;
 
   const [rows] = await pool.query('SELECT * FROM driversDirectory WHERE telegramId = ?', [`@${telegramId}`]);
@@ -108,15 +108,15 @@ app.post('/verify', async (req, res) => {
     return res.status(403).json({ error: 'Access denied: Not a member.' });
   }
   return res.status(200).json({ ok: true });
-});
+}));
 
-// ---------------------- Socket communication between Frontend and Backend --------------------------
+// ✅ Socket communication
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
   socket.on('socket register', async (msg) => {
     try {
-      console.log("first socket save", msg.userId);
+      if (!msg.userId) return;
       onlineUsers.set(msg.userId, socket.id);
     } catch (err) {
       console.error('Failed to register socketId:', err);
@@ -124,15 +124,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('chat message', async (msg) => {
-    // msg: { userId, content }
+    if (!msg.userId || typeof msg.content !== 'string') {
+      console.warn("Invalid chat message payload:", msg);
+      return;
+    }
+
     try {
-      onlineUsers.set(msg.userId, socket.id);
-      console.log("chat message user Id showing", msg.userId);
       const [result] = await pool.query(
         'INSERT INTO messages (user_id, content) VALUES (?, ?)',
         [msg.userId, msg.content]
       );
-      // Forward to external system (webhook)
       await axios.post(EXTERNAL_WEBHOOK_URL, {
         messageId: result.insertId,
         userId: msg.userId,
@@ -144,7 +145,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    // Remove user from online map
     for (const [userId, sockId] of onlineUsers.entries()) {
       if (sockId === socket.id) {
         onlineUsers.delete(userId);
@@ -156,4 +156,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 8080;
-server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`)); 
+server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
