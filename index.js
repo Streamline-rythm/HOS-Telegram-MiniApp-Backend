@@ -38,7 +38,7 @@ const getRepliesForMessages = async (messageIds) => {
 // ---------------- Webhook endpoint for external system to send reply -------------------
 app.post('/webhook/reply', async (req, res) => {
   const { messageId, reply } = req.body;
-  const convert_reply = reply.replaceAll("***", "\n");
+  const convert_reply = reply.replaceAll("***", "\\n");
   try {
     // Insert new reply
     const [result] = await pool.query(
@@ -114,6 +114,14 @@ app.post('/verify', async (req, res) => {
 // ---------------------- Socket communication between Frontend and Backend --------------------------
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
+
+  socket.on('socket register', async (msg) => {
+    try {
+      onlineUsers.set(msg.userId, socket.id);
+    } catch (err) {
+      console.error('Failed to register socketId:', err);
+    }
+  });
 
   socket.on('chat message', async (msg) => {
     // msg: { userId, content }
