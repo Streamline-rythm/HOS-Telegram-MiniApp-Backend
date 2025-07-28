@@ -38,12 +38,11 @@ const getRepliesForMessages = async (messageIds) => {
 // ---------------- Webhook endpoint for external system to send reply -------------------
 app.post('/webhook/reply', async (req, res) => {
   const { messageId, reply } = req.body;
-  const convert_reply = reply.replaceAll("***", "\n");
   try {
     // Insert new reply
     const [result] = await pool.query(
       'INSERT INTO replies (message_id, reply_content) VALUES (?, ?)',
-      [messageId, convert_reply]
+      [messageId, reply]
     );
     // Find userId for this message
     const [[msg]] = await pool.query('SELECT user_id FROM messages WHERE id = ?', [messageId]);
@@ -52,7 +51,7 @@ app.post('/webhook/reply', async (req, res) => {
       console.log(`user ID = ${userId}`);
       const socketId = onlineUsers.get(userId);
       if (socketId) {
-        io.to(socketId).emit('reply', { messageId, convert_reply });
+        io.to(socketId).emit('reply', { messageId, reply });
       } else {
         console.log("there is not socket ID");
       }
