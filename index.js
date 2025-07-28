@@ -116,6 +116,7 @@ io.on('connection', (socket) => {
 
   socket.on('socket register', async (msg) => {
     try {
+      console.log("first socket save", msg.userId);
       onlineUsers.set(msg.userId, socket.id);
     } catch (err) {
       console.error('Failed to register socketId:', err);
