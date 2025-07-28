@@ -38,11 +38,12 @@ const getRepliesForMessages = async (messageIds) => {
 // ---------------- Webhook endpoint for external system to send reply -------------------
 app.post('/webhook/reply', async (req, res) => {
   const { messageId, reply } = req.body;
+  const convert_reply = reply.replaceAll("***", "\n");
   try {
     // Insert new reply
     const [result] = await pool.query(
       'INSERT INTO replies (message_id, reply_content) VALUES (?, ?)',
-      [messageId, reply]
+      [messageId, convert_reply]
     );
     // Find userId for this message
     const [[msg]] = await pool.query('SELECT user_id FROM messages WHERE id = ?', [messageId]);
@@ -51,7 +52,7 @@ app.post('/webhook/reply', async (req, res) => {
       console.log(`user ID = ${userId}`);
       const socketId = onlineUsers.get(userId);
       if (socketId) {
-        io.to(socketId).emit('reply', { messageId, reply });
+        io.to(socketId).emit('reply', { messageId, convert_reply });
       } else {
         console.log("there is not socket ID");
       }
@@ -67,22 +68,36 @@ app.post('/webhook/reply', async (req, res) => {
 app.get('/messages', async (req, res) => {
   const userId = req.query.userId;
   if (!userId) return res.status(400).json({ error: 'userId required' });
+
   try {
     const [messages] = await pool.query(
-      'SELECT * FROM messages WHERE user_id = ? ORDER BY created_at ASC',
+      `
+      SELECT * FROM messages
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT 20
+      `,
       [userId]
     );
-    const messageIds = messages.map(m => m.id);
+
+    // Reverse to get ascending order (oldest first)
+    const sortedMessages = messages.reverse();
+
+    const messageIds = sortedMessages.map(m => m.id);
     const repliesByMessage = await getRepliesForMessages(messageIds);
-    const messagesWithReplies = messages.map(msg => ({
+
+    const messagesWithReplies = sortedMessages.map(msg => ({
       ...msg,
       replies: repliesByMessage[msg.id] || []
     }));
+
     res.json(messagesWithReplies);
   } catch (err) {
+    console.error('❌ Error fetching messages:', err);
     res.status(500).json({ error: 'Failed to fetch messages' });
   }
 });
+
 
 // ---------------------- verify user --------------------------
 app.post('/verify', async (req, res) => {
