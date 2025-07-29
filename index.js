@@ -60,7 +60,7 @@ app.post('/webhook/reply', asyncHandler(async (req, res) => {
     const userId = msg.user_id;
     const socketId = onlineUsers.get(userId);
     if (socketId) {
-      io.to(socketId).emit('reply', { messageId, reply });
+      io.to(socketId).emit('reply', { messageId, reply, currentTime });
     } else {
       console.log("No active socket for user:", userId);
     }
