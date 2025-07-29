@@ -124,7 +124,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('chat message', async (msg) => {
+  socket.on('chat message', async (msg, callback) => {
     if (!msg.userId || typeof msg.content !== 'string') {
       console.warn("Invalid chat message payload:", msg);
       return;
@@ -137,18 +137,15 @@ io.on('connection', (socket) => {
         [msg.userId, msg.content, currentTime]
       );
 
-      socket.emit('chat message', {
-        request: msg.content,
-        timeStamp: currentTime,
-      })
-
       await axios.post(EXTERNAL_WEBHOOK_URL, {
         messageId: result.insertId,
         userId: msg.userId,
         content: msg.content
       });
+      callback({ success: true, request: msg.content, timestamp: currentTime });
     } catch (err) {
-      console.error('Failed to save/send message:', err);
+      // console.error('Failed to save/send message:', err);
+      callback({ success: false, error: err.message });
     }
   });
 
