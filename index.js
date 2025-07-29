@@ -1,4 +1,4 @@
-import http from 'http';
+import http, { request } from 'http';
 import cors from 'cors';
 import axios from 'axios';
 import dotenv from 'dotenv';
@@ -6,6 +6,7 @@ import express from 'express';
 import { Server } from 'socket.io';
 
 import pool from './db.js';
+import { timeStamp } from 'console';
 
 dotenv.config();
 
@@ -48,10 +49,10 @@ app.post('/webhook/reply', asyncHandler(async (req, res) => {
   if (!messageId || typeof reply !== 'string') {
     return res.status(400).json({ error: 'Invalid payload' });
   }
-
+  const currentTime = new Date().toISOString();
   const [result] = await pool.query(
-    'INSERT INTO replies (message_id, reply_content) VALUES (?, ?)',
-    [messageId, reply]
+    'INSERT INTO replies (message_id, reply_content, reply_at) VALUES (?, ?, ?)',
+    [messageId, reply, currentTime]
   );
 
   const [[msg]] = await pool.query('SELECT user_id FROM messages WHERE id = ?', [messageId]);
@@ -130,10 +131,17 @@ io.on('connection', (socket) => {
     }
 
     try {
+      const currentTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
       const [result] = await pool.query(
-        'INSERT INTO messages (user_id, content) VALUES (?, ?)',
-        [msg.userId, msg.content]
+        'INSERT INTO messages (user_id, content, created_at) VALUES (?, ?, ?)',
+        [msg.userId, msg.content, currentTime]
       );
+
+      socket.emit('chat message', {
+        request: msg.content,
+        timeStamp: currentTime,
+      })
+
       await axios.post(EXTERNAL_WEBHOOK_URL, {
         messageId: result.insertId,
         userId: msg.userId,
