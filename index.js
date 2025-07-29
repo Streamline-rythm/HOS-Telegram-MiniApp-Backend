@@ -20,7 +20,6 @@ const io = new Server(server, {
 
 const onlineUsers = new Map(); // userId -> socket.id
 const EXTERNAL_WEBHOOK_URL = "https://hook.us2.make.com/dofk0pewchek787h49faugkr5ql7otnu";
-
 app.use(cors());
 app.use(express.json());
 
@@ -49,7 +48,8 @@ app.post('/webhook/reply', asyncHandler(async (req, res) => {
   if (!messageId || typeof reply !== 'string') {
     return res.status(400).json({ error: 'Invalid payload' });
   }
-  const currentTime = new Date().toISOString();
+  const currentTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
   const [result] = await pool.query(
     'INSERT INTO replies (message_id, reply_content, reply_at) VALUES (?, ?, ?)',
     [messageId, reply, currentTime]
@@ -142,6 +142,7 @@ io.on('connection', (socket) => {
         userId: msg.userId,
         content: msg.content
       });
+
       callback({ success: true, request: msg.content, timestamp: currentTime });
     } catch (err) {
       // console.error('Failed to save/send message:', err);
