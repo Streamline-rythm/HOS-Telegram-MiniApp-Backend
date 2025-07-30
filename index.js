@@ -140,7 +140,8 @@ io.on('connection', (socket) => {
       await axios.post(EXTERNAL_WEBHOOK_URL, {
         messageId: result.insertId,
         userId: msg.userId,
-        content: msg.content
+        content: msg.content,
+        destination: msg.destination
       });
 
       callback({ success: true, request: msg.content, timestamp: currentTime });
